@@ -110,3 +110,86 @@ ${analysis.problems.map((p) => `• ${p}`).join("\n")}`;
     throw error;
   }
 }
+
+/**
+ * Send the factual analysis to Groq and get back professional recruiter feedback.
+ *
+ * @param {object} profile  – raw GitHub profile object
+ * @param {object} analysis – output of analyzeGitHubData()
+ * @returns {Promise<{ summary: string, strengths: string[], concerns: string[], recommendations: Array<{what: string, why: string, affects: string}>, project_improvements: string[] }>}
+ */
+export async function generateRecruiterAnalysis(profile, analysis) {
+  const systemPrompt = `You are a senior technical recruiter analyzing a developer's public GitHub profile to evaluate how they present themselves professionally to potential employers.
+
+RULES:
+1. Base your assessment ONLY on the factual profile metrics, repository statistics, and scores provided.
+2. NEVER invent repositories, technologies, commit counts, stars, or achievements that are not explicitly provided.
+3. Be professional, constructive, practical, and fair.
+4. Clearly distinguish observed facts from recommendations.
+5. Focus on how a recruiter evaluates a candidate's public profile (presentation, documentation, consistency, repository names, descriptions).
+6. Avoid judging employability, intelligence, or predicting whether the candidate will get hired.
+7. Return your response as valid JSON with the following exact keys:
+   - "summary": a short 2-4 sentence professional assessment of the GitHub profile.
+   - "strengths": an array of 3-5 concrete strength strings based on provided data.
+   - "concerns": an array of 3-5 recruiter concerns (areas that make evaluation harder).
+   - "recommendations": an array of 3-5 recommendation objects, each containing:
+       { "what": "Short action statement", "why": "Why it matters to a recruiter", "affects": "Affected profile section" }
+   - "project_improvements": an array of 3-5 practical repository presentation tips (READMEs, descriptions, project naming).`;
+
+  const userPrompt = `Review this GitHub user from a recruiter perspective.
+
+=== PROFILE ===
+Username: ${profile.login}
+Name: ${profile.name || "Not set"}
+Bio: ${profile.bio || "Not set"}
+Public repos: ${profile.public_repos}
+Followers: ${profile.followers}
+Following: ${profile.following}
+Account created: ${profile.created_at}
+
+=== SCORES (0-100) ===
+Documentation: ${analysis.scores.documentation}
+Activity: ${analysis.scores.activity}
+Presentation: ${analysis.scores.presentation}
+Projects: ${analysis.scores.projects}
+Cleanliness: ${analysis.scores.cleanliness}
+Overall: ${analysis.scores.overall}
+
+=== STATS ===
+${JSON.stringify(analysis.stats, null, 2)}
+
+=== OBSERVED ISSUES ===
+${analysis.problems.map((p) => `• ${p}`).join("\n")}`;
+
+  try {
+    const chatCompletion = await getGroqClient().chat.completions.create({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.5,
+      max_tokens: 2048,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = chatCompletion.choices?.[0]?.message?.content;
+
+    if (!raw) {
+      throw new Error("Groq returned an empty response for recruiter analysis.");
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return {
+      summary: parsed.summary || "Profile analysis completed.",
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+      concerns: Array.isArray(parsed.concerns) ? parsed.concerns : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      project_improvements: Array.isArray(parsed.project_improvements) ? parsed.project_improvements : [],
+    };
+  } catch (err) {
+    console.error("Groq recruiter service error:", err.message);
+    throw err;
+  }
+}

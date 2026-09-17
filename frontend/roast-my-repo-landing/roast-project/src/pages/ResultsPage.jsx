@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const SCORE_LABELS = {
@@ -64,6 +64,7 @@ export default function ResultsPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const data = location.state?.data
+  const [mode, setMode] = useState('roast') // 'roast' | 'recruiter'
 
   useEffect(() => {
     if (!data) navigate('/analyze', { replace: true })
@@ -71,7 +72,7 @@ export default function ResultsPage() {
 
   if (!data) return null
 
-  const { profile, stats, scores, problems, suggestions, roast } = data
+  const { profile, stats, scores, problems, suggestions, roast, recruiter } = data
 
   return (
     <div className="results-page">
@@ -133,58 +134,161 @@ export default function ResultsPage() {
           </div>
         </section>
 
-        {/* ---------- Roast ---------- */}
-        <section className="results-roast-card">
-          <h2 className="results-roast-title">
-            🔥 The Roast
-          </h2>
+        {/* ---------- Mode Switch Bar ---------- */}
+        <div className="mode-toggle-bar">
+          <button
+            className={`mode-toggle-btn ${mode === 'roast' ? 'active-roast' : ''}`}
+            onClick={() => setMode('roast')}
+          >
+            🔥 Roast Mode
+          </button>
+          <button
+            className={`mode-toggle-btn ${mode === 'recruiter' ? 'active-recruiter' : ''}`}
+            onClick={() => setMode('recruiter')}
+          >
+            💼 Recruiter Mode
+          </button>
+        </div>
 
-          <div className="results-roast-list">
-            {roast
-              ? roast
-                  .split('\n')
-                  .map((p) => p.trim())
-                  .filter((p) => p.length > 0)
-                  .map((para, i) => {
-                    const cleanText = para.replace(/^[\u2022\-\*\d\.]+\s*/, '')
-                    const icons = ['🔥', '⚡', '💀', '🎯', '☣️']
-                    const icon = icons[i % icons.length]
-                    return (
-                      <div className="results-roast-item" key={i}>
-                        <span className="results-roast-icon">{icon}</span>
-                        <p className="results-roast-item-text">{cleanText}</p>
-                      </div>
-                    )
-                  })
-              : null}
-          </div>
-        </section>
+        {/* ---------- ROAST MODE VIEW ---------- */}
+        {mode === 'roast' && (
+          <>
+            <section className="results-roast-card">
+              <h2 className="results-roast-title">
+                🔥 The Roast
+              </h2>
 
-        {/* ---------- Problems ---------- */}
-        {problems.length > 0 && (
-          <section className="results-section">
-            <h2 className="results-section-title">⚠️ Problems Found</h2>
-            <ul className="results-list results-problems">
-              {problems.map((p, i) => (
-                <li key={i}>{p}</li>
-              ))}
-            </ul>
-          </section>
+              <div className="results-roast-list">
+                {roast
+                  ? roast
+                      .split('\n')
+                      .map((p) => p.trim())
+                      .filter((p) => p.length > 0)
+                      .map((para, i) => {
+                        const cleanText = para.replace(/^[\u2022\-\*\d\.]+\s*/, '')
+                        const icons = ['🔥', '⚡', '💀', '🎯', '☣️']
+                        const icon = icons[i % icons.length]
+                        return (
+                          <div className="results-roast-item" key={i}>
+                            <span className="results-roast-icon">{icon}</span>
+                            <p className="results-roast-item-text">{cleanText}</p>
+                          </div>
+                        )
+                      })
+                  : null}
+              </div>
+            </section>
+
+            {problems.length > 0 && (
+              <section className="results-section">
+                <h2 className="results-section-title">⚠️ Problems Found</h2>
+                <ul className="results-list results-problems">
+                  {problems.map((p, i) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {suggestions.length > 0 && (
+              <section className="results-section">
+                <h2 className="results-section-title">💡 Suggestions</h2>
+                <ul className="results-list results-suggestions">
+                  {suggestions.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
         )}
 
-        {/* ---------- Suggestions ---------- */}
-        {suggestions.length > 0 && (
-          <section className="results-section">
-            <h2 className="results-section-title">💡 Suggestions</h2>
-            <ul className="results-list results-suggestions">
-              {suggestions.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
-          </section>
+        {/* ---------- RECRUITER MODE VIEW ---------- */}
+        {mode === 'recruiter' && (
+          <>
+            {recruiter ? (
+              <div className="recruiter-dashboard">
+                {/* 1. Professional Summary */}
+                <section className="results-section recruiter-summary-card">
+                  <h2 className="results-section-title">💼 Professional Summary</h2>
+                  <p className="recruiter-summary-text">{recruiter.summary}</p>
+                </section>
+
+                {/* 2. Observed Strengths */}
+                {recruiter.strengths?.length > 0 && (
+                  <section className="results-section">
+                    <h2 className="results-section-title">✨ Candidate Strengths</h2>
+                    <ul className="results-list recruiter-strengths">
+                      {recruiter.strengths.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {/* 3. Recruiter Concerns */}
+                {recruiter.concerns?.length > 0 && (
+                  <section className="results-section">
+                    <h2 className="results-section-title">⚠️ Recruiter Concerns</h2>
+                    <ul className="results-list recruiter-concerns">
+                      {recruiter.concerns.map((c, i) => (
+                        <li key={i}>{c}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {/* 4. Recommended Improvements */}
+                {recruiter.recommendations?.length > 0 && (
+                  <section className="results-section">
+                    <h2 className="results-section-title">🎯 Recommended Improvements</h2>
+                    <div className="recruiter-recs-grid">
+                      {recruiter.recommendations.map((rec, i) => {
+                        const what = typeof rec === 'object' ? rec.what : rec
+                        const why = typeof rec === 'object' ? rec.why : ''
+                        const affects = typeof rec === 'object' ? rec.affects : ''
+                        return (
+                          <div className="recruiter-rec-card" key={i}>
+                            <div className="rec-card-header">
+                              <span className="rec-num">0{i + 1}</span>
+                              <strong className="rec-what">{what}</strong>
+                            </div>
+                            {why && <p className="rec-why"><strong>Why it matters:</strong> {why}</p>}
+                            {affects && <span className="rec-affects">Affects: {affects}</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {/* 5. Project Presentation */}
+                {recruiter.project_improvements?.length > 0 && (
+                  <section className="results-section">
+                    <h2 className="results-section-title">📦 Project Presentation Advice</h2>
+                    <ul className="results-list recruiter-projects">
+                      {recruiter.project_improvements.map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            ) : (
+              <section className="results-section recruiter-fallback-card">
+                <div className="recruiter-fallback-content">
+                  <span style={{ fontSize: '32px' }}>💼</span>
+                  <h3 style={{ margin: '8px 0 4px', fontSize: '18px' }}>Recruiter Analysis Unavailable</h3>
+                  <p style={{ margin: 0, color: 'var(--ink-dim)' }}>
+                    Recruiter analysis is temporarily unavailable. Your roast is still ready 🔥
+                  </p>
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        {/* ---------- Quick Stats ---------- */}
+        {/* ---------- Quick Stats (Shared across both modes) ---------- */}
         <section className="results-section results-quick-stats">
           <h2 className="results-section-title">📊 Quick Stats</h2>
           <div className="results-chips">

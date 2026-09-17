@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { fetchGitHubProfile, fetchGitHubRepos } from "../services/githubService.js";
 import { analyzeGitHubData } from "../utils/analyzer.js";
-import { generateRoast } from "../services/groqService.js";
+import { generateRoast, generateRecruiterAnalysis } from "../services/groqService.js";
 
 const router = Router();
 
@@ -38,8 +38,26 @@ router.post("/analyze", async (req, res) => {
     // --- Analyse locally ----------------------------------------------------
     const analysis = analyzeGitHubData(profile, repos);
 
-    // --- Generate roast via Groq -------------------------------------------
-    const { roast, suggestions } = await generateRoast(profile, analysis);
+    // --- Generate roast & recruiter analysis in parallel -------------------
+    let roastData = { roast: "Could not generate roast.", suggestions: [] };
+    let recruiterData = null;
+
+    const [roastRes, recruiterRes] = await Promise.allSettled([
+      generateRoast(profile, analysis),
+      generateRecruiterAnalysis(profile, analysis),
+    ]);
+
+    if (roastRes.status === "fulfilled") {
+      roastData = roastRes.value;
+    } else {
+      console.error("Roast generation failed:", roastRes.reason?.message || roastRes.reason);
+    }
+
+    if (recruiterRes.status === "fulfilled") {
+      recruiterData = recruiterRes.value;
+    } else {
+      console.error("Recruiter analysis generation failed:", recruiterRes.reason?.message || recruiterRes.reason);
+    }
 
     // --- Build response -----------------------------------------------------
     return res.json({
@@ -57,8 +75,9 @@ router.post("/analyze", async (req, res) => {
       stats: analysis.stats,
       scores: analysis.scores,
       problems: analysis.problems,
-      suggestions,
-      roast,
+      suggestions: roastData.suggestions,
+      roast: roastData.roast,
+      recruiter: recruiterData,
     });
   } catch (err) {
     console.error("POST /api/analyze error:", err.message);
