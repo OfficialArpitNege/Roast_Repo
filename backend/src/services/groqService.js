@@ -193,3 +193,79 @@ ${analysis.problems.map((p) => `• ${p}`).join("\n")}`;
     throw err;
   }
 }
+
+/**
+ * Send the factual analysis to Groq and get back a simulated profile makeover plan.
+ *
+ * @param {object} profile  – raw GitHub profile object
+ * @param {object} analysis – output of analyzeGitHubData()
+ * @returns {Promise<{ profile_preview: { tagline: string, featured_tech: string[], featured_projects: Array<{name: string, description: string, tech: string}> }, repo_makeovers: Array<{name: string, current_status: string, recommended_action: string, impact: string}>, priority_actions: Array<{impact: string, action: string, why: string}> }>}
+ */
+export async function generateMakeoverPlan(profile, analysis) {
+  const systemPrompt = `You are "GitHub Makeover Advisor", a developer branding & profile presentation consultant.
+
+RULES:
+1. Base your makeover advice strictly on the provided factual profile data, repo names, and scores.
+2. NEVER invent non-existent repositories, commit counts, stars, or technologies. Use ONLY the user's actual repos and languages listed in the provided data.
+3. Clearly present simulated/recommended presentation improvements without claiming changes have been made.
+4. Return valid JSON with the following exact keys:
+   - "profile_preview": an object containing:
+       - "tagline": a short, professional 1-sentence bio/tagline for their profile.
+       - "featured_tech": an array of 3-5 tech stack badges based on their actual languages.
+       - "featured_projects": an array of 2-3 project objects using ONLY their real repo names:
+           { "name": "RepoName", "description": "Crisp 1-line description", "tech": "Primary Language" }
+   - "repo_makeovers": an array of 2-4 repo objects for repos that need presentation fixes:
+       { "name": "RepoName", "current_status": "What is lacking", "recommended_action": "How to fix it", "impact": "High" | "Medium" | "Low" }
+   - "priority_actions": an array of 3-5 action items prioritized by impact:
+       { "impact": "High" | "Medium" | "Low", "action": "Clear action step", "why": "Why it improves presentation" }`;
+
+  const userPrompt = `Generate a simulated profile makeover plan for this GitHub user.
+
+=== PROFILE ===
+Username: ${profile.login}
+Name: ${profile.name || "Not set"}
+Bio: ${profile.bio || "Not set"}
+Public repos: ${profile.public_repos}
+
+=== SCORES (0-100) ===
+Documentation: ${analysis.scores.documentation}
+Activity: ${analysis.scores.activity}
+Presentation: ${analysis.scores.presentation}
+Projects: ${analysis.scores.projects}
+Cleanliness: ${analysis.scores.cleanliness}
+Overall: ${analysis.scores.overall}
+
+=== STATS & REPOS ===
+Languages: ${JSON.stringify(analysis.stats.languages)}
+Top Repos: ${JSON.stringify(analysis.stats.sampleRepos || [])}
+
+=== ISSUES FOUND ===
+${analysis.problems.map((p) => `• ${p}`).join("\n")}`;
+
+  try {
+    const chatCompletion = await getGroqClient().chat.completions.create({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.6,
+      max_tokens: 2048,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = chatCompletion.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("Empty Groq makeover response.");
+
+    const parsed = JSON.parse(raw);
+
+    return {
+      profile_preview: parsed.profile_preview || { tagline: "", featured_tech: [], featured_projects: [] },
+      repo_makeovers: Array.isArray(parsed.repo_makeovers) ? parsed.repo_makeovers : [],
+      priority_actions: Array.isArray(parsed.priority_actions) ? parsed.priority_actions : [],
+    };
+  } catch (err) {
+    console.error("Groq makeover service error:", err.message);
+    throw err;
+  }
+}

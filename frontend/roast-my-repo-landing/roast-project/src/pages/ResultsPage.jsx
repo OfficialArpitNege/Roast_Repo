@@ -60,6 +60,248 @@ function OverallScore({ value }) {
   )
 }
 
+function MakeoverSimulatorView({ profile, stats, scores, problems, makeover, onRescan }) {
+  const [isSimulating, setIsSimulating] = useState(true)
+  const [simStep, setSimStep] = useState(0)
+  const [activeTab, setActiveTab] = useState('recommended') // 'current' | 'recommended'
+  const [displayedScore, setDisplayedScore] = useState(scores.overall)
+
+  const steps = [
+    'Scanning current profile presentation...',
+    'Identifying documentation & README gaps...',
+    'Simulating ideal profile structure...',
+    'Calculating potential score boost...',
+  ]
+
+  useEffect(() => {
+    setIsSimulating(true)
+    setSimStep(0)
+    
+    const interval = setInterval(() => {
+      setSimStep((prev) => {
+        if (prev < steps.length - 1) return prev + 1
+        clearInterval(interval)
+        setTimeout(() => setIsSimulating(false), 350)
+        return prev
+      })
+    }, 400)
+
+    return () => clearInterval(interval)
+  }, [makeover])
+
+  const targetScore = makeover?.potential_score || Math.min(98, scores.overall + 25)
+
+  useEffect(() => {
+    if (isSimulating) return
+    let current = scores.overall
+    const step = Math.ceil((targetScore - current) / 20) || 1
+    const timer = setInterval(() => {
+      current += step
+      if (current >= targetScore) {
+        setDisplayedScore(targetScore)
+        clearInterval(timer)
+      } else {
+        setDisplayedScore(current)
+      }
+    }, 25)
+    return () => clearInterval(timer)
+  }, [isSimulating, targetScore, scores.overall])
+
+  if (isSimulating) {
+    return (
+      <div className="makeover-simulating-loader">
+        <div className="sim-spinner" />
+        <h3 className="sim-loader-title">✨ Simulating Profile Makeover...</h3>
+        <p className="sim-loader-step">{steps[simStep]}</p>
+        <div className="sim-progress-bar">
+          <div
+            className="sim-progress-fill"
+            style={{ width: `${((simStep + 1) / steps.length) * 100}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="makeover-dashboard">
+      {/* 1. Score Impact Highlight */}
+      <section className="results-section makeover-score-comparison">
+        <div className="makeover-score-grid">
+          <div className="current-score-box">
+            <span className="score-box-label">Current Audit</span>
+            <div className="score-box-val">{scores.overall}</div>
+          </div>
+
+          <div className="score-arrow">➔</div>
+
+          <div className="potential-score-box">
+            <span className="score-box-label">Simulated Potential</span>
+            <div className="score-box-val">{displayedScore}</div>
+            <span className="score-box-sub text-mint">
+              +{targetScore - scores.overall} pts potential boost
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Interactive Profile Simulator Preview */}
+      <section className="results-section">
+        <div className="makeover-preview-header">
+          <h2 className="results-section-title">✨ Profile Makeover Preview</h2>
+          <div className="makeover-tab-toggle">
+            <button
+              className={`tab-btn ${activeTab === 'current' ? 'active' : ''}`}
+              onClick={() => setActiveTab('current')}
+            >
+              Current Profile
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'recommended' ? 'active' : ''}`}
+              onClick={() => setActiveTab('recommended')}
+            >
+              ✨ Recommended Makeover
+            </button>
+          </div>
+        </div>
+
+        <div className="mock-profile-card">
+          <div className="mock-profile-header">
+            <img src={profile.avatar} alt="Avatar" className="mock-avatar" />
+            <div>
+              <h3 className="mock-name">{profile.name || profile.username}</h3>
+              <p className="mock-username">@{profile.username}</p>
+            </div>
+          </div>
+
+          {/* Dynamic Bio / Tagline */}
+          <div className="mock-tagline-box">
+            <span className="mock-tagline-label">
+              {activeTab === 'recommended' ? '✨ Recommended Tagline' : 'Current Bio'}
+            </span>
+            <p className="mock-tagline">
+              {activeTab === 'recommended'
+                ? makeover?.profile_preview?.tagline || `Full-Stack Developer focused on high-performance web applications.`
+                : profile.bio || '❌ No bio set'}
+            </p>
+          </div>
+
+          {/* Tech Badges */}
+          <div className="mock-tech-stack">
+            <span className="mock-tech-label">🛠 Technology Highlights:</span>
+            <div className="mock-tech-badges">
+              {(activeTab === 'recommended'
+                ? makeover?.profile_preview?.featured_tech || stats.languages || ['JavaScript', 'React', 'Node.js']
+                : stats.languages || ['JavaScript']
+              ).map((tech, i) => (
+                <span className="mock-tech-badge" key={i}>{tech}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Featured Repositories Showcase */}
+          <div className="mock-pinned-section">
+            <span className="mock-pinned-label">📌 Featured Showcase Repositories:</span>
+            <div className="mock-pinned-grid">
+              {(makeover?.profile_preview?.featured_projects?.length > 0
+                ? makeover.profile_preview.featured_projects
+                : (stats.sampleRepos || []).slice(0, 3).map((r) => ({
+                    name: r.name,
+                    description: r.description || 'Main project repository',
+                    tech: r.language || 'JavaScript',
+                  }))
+              ).map((p, i) => (
+                <div className="mock-project-card" key={i}>
+                  <div className="mock-proj-name">📁 {p.name}</div>
+                  <p className="mock-proj-desc">
+                    {activeTab === 'recommended'
+                      ? p.description || 'Clear project summary with installation guide & demo.'
+                      : p.description || '⚠️ Missing description'}
+                  </p>
+                  <div className="mock-proj-meta">
+                    <span>● {p.tech || 'Code'}</span>
+                    <span className="mock-badge">
+                      {activeTab === 'recommended' ? '✨ Polished' : 'Raw'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Priority Actions (Compact Grid) */}
+      <section className="results-section">
+        <h2 className="results-section-title">⚡ High-Impact Action Items</h2>
+        <div className="makeover-priorities-list">
+          {(makeover?.priority_actions?.length > 0
+            ? makeover.priority_actions
+            : problems.map((prob, i) => ({
+                impact: i === 0 ? 'High' : i === 1 ? 'Medium' : 'Low',
+                action: prob,
+                why: 'Improves completeness and clarity of your developer profile.',
+              }))
+          ).map((act, i) => (
+            <div
+              className={`makeover-priority-card impact-${act.impact?.toLowerCase() || 'medium'}`}
+              key={i}
+            >
+              <div className="prio-header">
+                <span className={`prio-badge ${act.impact?.toLowerCase() || 'medium'}`}>
+                  {act.impact === 'High' ? '🔴' : act.impact === 'Medium' ? '🟡' : '🟢'}{' '}
+                  {act.impact} Impact
+                </span>
+                <span className="prio-action">{act.action}</span>
+              </div>
+              {act.why && <p className="prio-reason">{act.why}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 4. Repository Makeovers (Concise Side-by-Side Cards) */}
+      {makeover?.repo_makeovers?.length > 0 && (
+        <section className="results-section">
+          <h2 className="results-section-title">📦 Selected Repository Makeovers</h2>
+          <div className="repo-makeovers-grid">
+            {makeover.repo_makeovers.map((rm, i) => (
+              <div className="repo-makeover-card" key={i}>
+                <div className="repo-makeover-header">
+                  <h4 className="repo-name-title">📁 {rm.name}</h4>
+                  <span className="repo-lang-badge">{rm.impact || 'Medium'} Impact</span>
+                </div>
+
+                <div className="repo-before-after">
+                  <div className="repo-state-box current">
+                    <span className="state-title">Current State</span>
+                    <p className="state-text">{rm.current_status}</p>
+                  </div>
+                  <div className="repo-state-box recommended">
+                    <span className="state-title">✨ Recommended Fix</span>
+                    <p className="state-text">{rm.recommended_action}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 5. Clean CTA */}
+      <section className="results-section makeover-rescan-card">
+        <h3 className="rescan-title">🚀 Ready to Apply Your Makeover?</h3>
+        <p className="rescan-subtitle">
+          Make these quick changes on GitHub, then re-scan to recalculate your real audit score!
+        </p>
+        <button className="rescan-btn" onClick={onRescan}>
+          🔄 Re-Scan My GitHub
+        </button>
+      </section>
+    </div>
+  )
+}
+
 export default function ResultsPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -72,7 +314,7 @@ export default function ResultsPage() {
 
   if (!data) return null
 
-  const { profile, stats, scores, problems, suggestions, roast, recruiter } = data
+  const { profile, stats, scores, problems, suggestions, roast, recruiter, makeover } = data
 
   return (
     <div className="results-page">
@@ -134,7 +376,7 @@ export default function ResultsPage() {
           </div>
         </section>
 
-        {/* ---------- Mode Switch Bar ---------- */}
+        {/* ---------- 3-Way Mode Switch Bar ---------- */}
         <div className="mode-toggle-bar">
           <button
             className={`mode-toggle-btn ${mode === 'roast' ? 'active-roast' : ''}`}
@@ -147,6 +389,12 @@ export default function ResultsPage() {
             onClick={() => setMode('recruiter')}
           >
             💼 Recruiter Mode
+          </button>
+          <button
+            className={`mode-toggle-btn ${mode === 'makeover' ? 'active-makeover' : ''}`}
+            onClick={() => setMode('makeover')}
+          >
+            ✨ Makeover
           </button>
         </div>
 
@@ -288,7 +536,19 @@ export default function ResultsPage() {
           </>
         )}
 
-        {/* ---------- Quick Stats (Shared across both modes) ---------- */}
+        {/* ---------- MAKEOVER SIMULATOR VIEW ---------- */}
+        {mode === 'makeover' && (
+          <MakeoverSimulatorView
+            profile={profile}
+            stats={stats}
+            scores={scores}
+            problems={problems}
+            makeover={makeover}
+            onRescan={() => navigate('/analyze')}
+          />
+        )}
+
+        {/* ---------- Quick Stats (Shared across all modes) ---------- */}
         <section className="results-section results-quick-stats">
           <h2 className="results-section-title">📊 Quick Stats</h2>
           <div className="results-chips">

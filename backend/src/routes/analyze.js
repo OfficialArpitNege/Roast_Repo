@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { fetchGitHubProfile, fetchGitHubRepos } from "../services/githubService.js";
 import { analyzeGitHubData } from "../utils/analyzer.js";
-import { generateRoast, generateRecruiterAnalysis } from "../services/groqService.js";
+import { generateRoast, generateRecruiterAnalysis, generateMakeoverPlan } from "../services/groqService.js";
 
 const router = Router();
 
@@ -38,13 +38,19 @@ router.post("/analyze", async (req, res) => {
     // --- Analyse locally ----------------------------------------------------
     const analysis = analyzeGitHubData(profile, repos);
 
-    // --- Generate roast & recruiter analysis in parallel -------------------
+    // --- Compute Estimated Potential Score deterministically -----------------
+    const currentOverall = analysis.scores.overall;
+    const potentialScore = Math.min(98, Math.round(currentOverall + (100 - currentOverall) * 0.65));
+
+    // --- Generate roast, recruiter, and makeover in parallel ----------------
     let roastData = { roast: "Could not generate roast.", suggestions: [] };
     let recruiterData = null;
+    let makeoverData = null;
 
-    const [roastRes, recruiterRes] = await Promise.allSettled([
+    const [roastRes, recruiterRes, makeoverRes] = await Promise.allSettled([
       generateRoast(profile, analysis),
       generateRecruiterAnalysis(profile, analysis),
+      generateMakeoverPlan(profile, analysis),
     ]);
 
     if (roastRes.status === "fulfilled") {
@@ -57,6 +63,33 @@ router.post("/analyze", async (req, res) => {
       recruiterData = recruiterRes.value;
     } else {
       console.error("Recruiter analysis generation failed:", recruiterRes.reason?.message || recruiterRes.reason);
+    }
+
+    if (makeoverRes.status === "fulfilled") {
+      makeoverData = {
+        ...makeoverRes.value,
+        potential_score: potentialScore,
+      };
+    } else {
+      console.error("Makeover generation failed:", makeoverRes.reason?.message || makeoverRes.reason);
+      makeoverData = {
+        potential_score: potentialScore,
+        profile_preview: {
+          tagline: `Full-stack developer building projects with ${analysis.stats.languages?.slice(0, 3).join(", ") || "code"}.`,
+          featured_tech: analysis.stats.languages || [],
+          featured_projects: (analysis.stats.sampleRepos || []).slice(0, 3).map((r) => ({
+            name: r.name,
+            description: r.description || "Public repository",
+            tech: r.language || "Code",
+          })),
+        },
+        repo_makeovers: [],
+        priority_actions: analysis.problems.map((prob, i) => ({
+          impact: i === 0 ? "High" : i === 1 ? "Medium" : "Low",
+          action: prob,
+          why: "Improves overall profile presentation & completeness.",
+        })),
+      };
     }
 
     // --- Build response -----------------------------------------------------
@@ -78,6 +111,7 @@ router.post("/analyze", async (req, res) => {
       suggestions: roastData.suggestions,
       roast: roastData.roast,
       recruiter: recruiterData,
+      makeover: makeoverData,
     });
   } catch (err) {
     console.error("POST /api/analyze error:", err.message);
