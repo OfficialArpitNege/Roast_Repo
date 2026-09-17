@@ -72,7 +72,7 @@ export function buildScrollTimeline({ character, state, cam, profileCard, repoCa
 
   // PHASE E — CTA (0.88 -> 1.0)
   master.to(cam, { x: 0.18, y: 1.5, z: 0.9, lx: 0.25, ly: 1.42, lz: -1.6, duration: 0.18, ease: 'power1.inOut' }, 0.88)
-  revealCaption('cap-5', 0.9, 1.05)
+  master.to('#cap-5', { opacity: 1, y: 0, duration: 0.08 }, 0.88)
 
   return master
 }

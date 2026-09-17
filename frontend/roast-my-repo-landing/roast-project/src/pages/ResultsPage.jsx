@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const SCORE_LABELS = {
   documentation: { label: 'Documentation', icon: '📄' },
@@ -74,13 +75,16 @@ export default function ResultsPage() {
 
   return (
     <div className="results-page">
-      <nav className="nav" style={{ background: 'rgba(244,247,252,0.85)' }}>
+      <nav className="nav">
         <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           roast<span>my</span>repo
         </div>
-        <button className="cta" onClick={() => navigate('/analyze')}>
-          Roast Another 🔥
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ThemeToggle />
+          <button className="cta" onClick={() => navigate('/analyze')}>
+            Roast Another 🔥
+          </button>
+        </div>
       </nav>
 
       <div className="results-container">
@@ -131,11 +135,28 @@ export default function ResultsPage() {
 
         {/* ---------- Roast ---------- */}
         <section className="results-roast-card">
-          <h2 className="results-roast-title">🔥 The Roast</h2>
-          <div className="results-roast-text">
-            {roast.split('\n').map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
+          <h2 className="results-roast-title">
+            🔥 The Roast
+          </h2>
+
+          <div className="results-roast-list">
+            {roast
+              ? roast
+                  .split('\n')
+                  .map((p) => p.trim())
+                  .filter((p) => p.length > 0)
+                  .map((para, i) => {
+                    const cleanText = para.replace(/^[\u2022\-\*\d\.]+\s*/, '')
+                    const icons = ['🔥', '⚡', '💀', '🎯', '☣️']
+                    const icon = icons[i % icons.length]
+                    return (
+                      <div className="results-roast-item" key={i}>
+                        <span className="results-roast-icon">{icon}</span>
+                        <p className="results-roast-item-text">{cleanText}</p>
+                      </div>
+                    )
+                  })
+              : null}
           </div>
         </section>
 

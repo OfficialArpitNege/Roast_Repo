@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -46,12 +47,14 @@ export default function AnalyzePage() {
       })
 
       const data = await res.json()
+      clearInterval(interval)
 
       if (!res.ok) {
-        throw new Error(data.error || `Server error (${res.status})`)
+        setError(data.error || 'Failed to analyze user. Please try again.')
+        setLoading(false)
+        return
       }
 
-      clearInterval(interval)
       navigate('/results', { state: { data } })
     } catch (err) {
       clearInterval(interval)
@@ -90,10 +93,11 @@ export default function AnalyzePage() {
   // ---------- Input Form ----------
   return (
     <div className="analyze-page">
-      <nav className="nav" style={{ background: 'transparent', backdropFilter: 'none' }}>
+      <nav className="nav">
         <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           roast<span>my</span>repo
         </div>
+        <ThemeToggle />
       </nav>
 
       <div className="analyze-card">

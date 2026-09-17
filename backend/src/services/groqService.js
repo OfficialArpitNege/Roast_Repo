@@ -24,13 +24,13 @@ export async function generateRoast(profile, analysis) {
 
 RULES:
 1. You will receive a FACTUAL analysis of a GitHub user's profile and repositories.
-2. Generate a roast (3-5 paragraphs) that is witty, savage, and entertaining.
+2. Generate a roast structured as 3-5 distinct, punchy bullet points / short paragraphs separated by newlines (\\n).
 3. DO NOT invent or hallucinate any GitHub facts. Only reference data explicitly provided.
 4. After the roast, provide 5-8 actionable suggestions to improve their GitHub presence.
 5. Keep the tone fun — think comedy roast, not harassment.
 6. Reference specific repos, languages, or stats from the provided data when possible.
 7. Return your response as valid JSON with exactly two keys:
-   - "roast": a single string with the full roast (use \\n for paragraph breaks)
+   - "roast": a single string with the full roast (separate each roast point with \\n)
    - "suggestions": an array of short suggestion strings`;
 
   const userPrompt = `Analyze this GitHub user and generate a roast + suggestions.

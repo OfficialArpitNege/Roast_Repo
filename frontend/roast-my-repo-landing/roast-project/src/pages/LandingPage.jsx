@@ -1,6 +1,7 @@
 import CanvasStage from '../three/CanvasStage.jsx'
 import HUD from '../components/HUD.jsx'
 import Loader from '../components/Loader.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 import { useNavigate } from 'react-router-dom'
 
 export default function LandingPage() {
@@ -18,9 +19,12 @@ export default function LandingPage() {
         <div className="logo">
           roast<span>my</span>repo
         </div>
-        <button className="cta" onClick={() => navigate('/analyze')}>
-          Roast My GitHub 🔥
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ThemeToggle />
+          <button className="cta" onClick={() => navigate('/analyze')}>
+            Roast My GitHub 🔥
+          </button>
+        </div>
       </nav>
 
       {/* Tall scroll track — controls how much scrolling the whole cinematic
